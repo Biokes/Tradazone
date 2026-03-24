@@ -130,54 +130,34 @@ tradazone/
 
 ---
 
+## 📐 Architectural Decision Records (ADR)
+
+### ADR 001: Selection of Frontend Tech Stack
+
+**Status**: Accepted
+
+**Context**: 
+The project requires a high-performance, developer-friendly, and multi-chain compatible frontend foundation. We need a stack that minimizes runtime overhead while maximizing build speed and developer experience.
+
+**Decision**:
+We have selected **React 19**, **Vite 7**, and **Tailwind CSS v3** as our core frontend stack.
+
+**Rationale**:
+- **Vite 7**: Provides superior development speed with instant HMR and optimized production builds using Rollup, significantly outperforming legacy bundlers like Webpack.
+- **React 19**: Ensures long-term maintainability and access to the latest React features (Actions, Transitions, and enhanced hooks) for complex state management required by multi-chain interactions.
+- **Tailwind CSS**: Enables a highly customizable and responsive design system with zero runtime CSS overhead, facilitating the "premium" aesthetic and "wow" factor required for the application.
+
+**Consequences**:
+- **Positive**: Rapid developer iterations, high runtime performance, and a modern, modular codebase.
+- **Negative**: Requires developers to be familiar with utility-first CSS and modern React hooks.
+
+---
+
 ## 🤝 Contributing
 
 Contributions, bug reports, and feature suggestions are all welcome!
 
-### How to Contribute
-
-1. **Fork** this repository
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. **Commit your changes** with a clear message
-   ```bash
-   git commit -m "feat: add your feature description"
-   ```
-4. **Push** to your branch
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-5. **Open a Pull Request** — describe what you changed and why
-
-### Commit Message Convention
-
-We follow a simple convention for commit messages:
-
-| Prefix | When to use |
-|---|---|
-| `feat:` | A new feature |
-| `fix:` | A bug fix |
-| `style:` | UI/CSS changes with no logic change |
-| `refactor:` | Code restructuring without behavior change |
-| `docs:` | Documentation updates |
-| `chore:` | Dependency updates, build configs |
-
-### Reporting Issues
-
-Found a bug or have a suggestion? [Open an issue](https://github.com/FolushoJoseph/Tradazone/issues) and include:
-- A clear description of the problem
-- Steps to reproduce
-- Expected vs actual behavior
-- Screenshots if applicable
-
-### Code Style
-
-- Keep components focused and single-purpose
-- Co-locate styles with components where possible
-- Follow existing naming conventions (`PascalCase` for components, `camelCase` for hooks/utils)
-- Avoid hardcoded values — use the data/context layer
+Please read our [CONTRIBUTING.md](./CONTRIBUTING.md) for details on our code of conduct, the process for submitting pull requests, and our CI/CD pipeline.
 
 ---
 
