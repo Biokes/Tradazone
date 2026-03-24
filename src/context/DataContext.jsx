@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
 
 const DataContext = createContext(null);
 
@@ -36,10 +36,15 @@ export function DataProvider({ children }) {
     const [checkouts, setCheckouts] = useState([]);
     const [items, setItems] = useState([]);
 
+    // Refs mirror state length so sequential IDs are always correct
+    // even when multiple adds happen within the same render batch.
+    const invoiceCountRef = useRef(0);
+    const checkoutCountRef = useRef(0);
+
     // ---------- Customers ----------
     const addCustomer = useCallback((data) => {
         const newCustomer = {
-            id: Date.now().toString(),
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             name: data.name,
             email: data.email,
             phone: data.phone || '',
@@ -60,7 +65,7 @@ export function DataProvider({ children }) {
     // ---------- Items ----------
     const addItem = useCallback((data) => {
         const newItem = {
-            id: Date.now().toString(),
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             name: data.name,
             description: data.description || '',
             type: data.type || 'service',
@@ -92,9 +97,8 @@ export function DataProvider({ children }) {
                 (sum, it) => sum + parseFloat(it.price) * it.quantity,
                 0
             );
-            const count = invoices.filter((i) => i.id.startsWith('INV-')).length;
             const newInvoice = {
-                id: `INV-${String(count + 1).padStart(3, '0')}`,
+                id: `INV-${String(++invoiceCountRef.current).padStart(3, '0')}`,
                 customer: customer ? customer.name : 'Unknown',
                 customerId: data.customerId,
                 amount: total.toLocaleString(),
@@ -111,22 +115,22 @@ export function DataProvider({ children }) {
             });
             return newInvoice;
         },
-        [customers, items, invoices]
+        [customers, items]
     );
 
     // ---------- Checkouts ----------
     const addCheckout = useCallback(
         (data) => {
-            const count = checkouts.filter((c) => c.id.startsWith('CHK-')).length;
+            const id = `CHK-${String(++checkoutCountRef.current).padStart(3, '0')}`;
             const newCheckout = {
-                id: `CHK-${String(count + 1).padStart(3, '0')}`,
+                id,
                 title: data.title,
                 description: data.description || '',
                 amount: data.amount,
                 currency: data.currency || 'STRK',
                 status: 'active',
                 createdAt: new Date().toISOString().split('T')[0],
-                paymentLink: `https://pay.tradazone.com/CHK-${String(count + 1).padStart(3, '0')}`,
+                paymentLink: `https://pay.tradazone.com/${id}`,
                 views: 0,
                 payments: 0,
             };
@@ -137,7 +141,7 @@ export function DataProvider({ children }) {
             });
             return newCheckout;
         },
-        [checkouts]
+        []
     );
 
     return (
