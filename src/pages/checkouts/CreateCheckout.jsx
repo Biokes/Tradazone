@@ -5,6 +5,7 @@ import Input from '../../components/forms/Input';
 import Button from '../../components/forms/Button';
 import { useData } from '../../context/DataContext';
 import Logo from '../../components/ui/Logo';
+import { dispatchWebhook } from '../../services/webhook';
 
 function CreateCheckout() {
     const navigate = useNavigate();
@@ -13,7 +14,15 @@ function CreateCheckout() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        addCheckout(formData);
+        const checkout = addCheckout(formData);
+        // Dispatch checkout.created webhook — fire-and-forget
+        dispatchWebhook('checkout.created', {
+            id: checkout.id,
+            title: checkout.title,
+            amount: checkout.amount,
+            currency: checkout.currency,
+            paymentLink: checkout.paymentLink,
+        });
         navigate('/checkout');
     };
 
@@ -36,10 +45,11 @@ function CreateCheckout() {
                 <form onSubmit={handleSubmit} className="bg-white border border-border rounded-card p-6">
                     <h2 className="text-base font-semibold mb-5">Checkout Details</h2>
                     <div className="flex flex-col gap-5 mb-6">
-                        <Input label="Title" placeholder="Enter checkout title" value={formData.title} onChange={handleChange('title')} required />
-                        <Input label="Description" placeholder="Enter description" value={formData.description} onChange={handleChange('description')} />
+                        {/* E2E UI Testing: IDs added to inputs (title, description, amount) to ensure proper queryability for Checkout flow tests. */}
+                        <Input id="title" label="Title" placeholder="Enter checkout title" value={formData.title} onChange={handleChange('title')} required />
+                        <Input id="description" label="Description" placeholder="Enter description" value={formData.description} onChange={handleChange('description')} />
                         <div className="relative">
-                            <Input label="Amount" type="number" placeholder="0.00" value={formData.amount} onChange={handleChange('amount')} required />
+                            <Input id="amount" label="Amount" type="number" placeholder="0.00" value={formData.amount} onChange={handleChange('amount')} required />
                             <span className="absolute right-3 bottom-2.5 text-xs font-semibold text-brand bg-brand-bg px-2 py-1 rounded">STRK</span>
                         </div>
                     </div>
