@@ -1,23 +1,49 @@
 // API Service for Tradazone
 // Handles data fetching and backend integration
 //
-// ADR-API-001 (Accepted, 2026-03-24):
-// We use a centralized JavaScript gateway module as the API boundary for UI features.
-// Context: backend endpoints are still being phased in while pages need stable contracts.
-// Decision: keep `api` domain groups (`customers`, `invoices`, `checkouts`, `items`)
-// in this file and resolve base URL from `VITE_API_URL` with a local fallback.
-// Consequence: feature pages can ship against consistent async interfaces now and
-// migrate method-by-method to real HTTP calls without rewriting page-level logic.
+// ADR-001 (API gateway / Fetch stack): documented in docs/adr/001-api-gateway-stack.md
+// Issue: #201 — selecting the centralized gateway module and HTTP handling for the UI.
 
-import { mockCustomers, mockInvoices, mockCheckouts, mockItems } from '../data/mockData';
+import {
+  mockCustomers,
+  mockInvoices,
+  mockCheckouts,
+  mockItems,
+} from "../data/mockData";
 
 // Base URL for the backend API
 // In development, this can be an environment variable or proxy
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 // Helper to simulate API delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Slice an array into a single page of results.
+ *
+ * @param {Array}  items
+ * @param {number} page   - 1-based page number. Values < 1 are clamped to 1.
+ * @param {number} limit  - Items per page (default 10).
+ * @returns {{ data: Array, page: number, limit: number, total: number, totalPages: number }}
+ */
+export function paginate(items, page = 1, limit = 10) {
+  // BUG FIX #31: clamp page to minimum of 1 to prevent page-0 underflow
+  const safePage = Math.max(1, Math.floor(page));
+  const safeLimit = Math.max(1, Math.floor(limit));
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  //if the requested page exceeds the available pages,clamp to last page
+  const clampedPage = Math.min(safePage, totalPages);
+  const start = (clampedPage - 1) * safeLimit;
+  return {
+    data: items.slice(start, start + safeLimit),
+    page: clampedPage,
+    limit: safeLimit,
+    total,
+    totalPages,
+  };
+}
 // ---------------------------------------------------------------------------
 // 401 / token-expiration interceptor
 // ---------------------------------------------------------------------------
@@ -33,14 +59,14 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * ```js
  * import { setUnauthorizedHandler } from './services/api';
  * setUnauthorizedHandler(() => {
- *     logout();
- *     navigate('/signin?reason=expired');
+ * logout();
+ * navigate('/signin?reason=expired');
  * });
  * ```
  */
 let _onUnauthorized = () => {
-    const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
-    window.location.assign(`${base}/signin?reason=expired`);
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+  window.location.assign(`${base}/signin?reason=expired`);
 };
 
 /**
@@ -51,7 +77,7 @@ let _onUnauthorized = () => {
  * @param {() => void} handler
  */
 export function setUnauthorizedHandler(handler) {
-    _onUnauthorized = handler;
+  _onUnauthorized = handler;
 }
 
 /**
@@ -59,8 +85,8 @@ export function setUnauthorizedHandler(handler) {
  *
  * - Returns parsed JSON on 2xx responses.
  * - On 401: calls _onUnauthorized() and returns
- *   `{ ok: false, error: 'ERR_TOKEN_EXPIRED', status: 401 }` so callers
- *   receive a machine-readable code rather than an unhandled rejection.
+ * `{ ok: false, error: 'ERR_TOKEN_EXPIRED', status: 401 }` so callers
+ * receive a machine-readable code rather than an unhandled rejection.
  * - On other non-2xx: throws an error enriched with `status` and `body`.
  *
  * Migration guide — replace each TODO mock with:
@@ -80,16 +106,23 @@ async function apiFetch(url, options = {}) {
         return { ok: false, error: 'ERR_TOKEN_EXPIRED', status: 401 };
     }
 
+/**
+ * FIXME (Resolved #15): Previously, an empty catch block on response.json()
+ * obscured underlying network errors. Added explicit error logging for
+ * failed parses to ensure CI pipeline visibility.
+ */
     if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw Object.assign(
-            new Error(body.message || `API error ${response.status}`),
-            { status: response.status, body }
-        );
-    }
+            // ✅ FIX: Capture parsing error and provide context for CI/CD logs
+            const body = await response.json().catch((parseError) => {
+                console.error(`[CI Network Error] Failed to parse error response as JSON: ${parseError.message}`);
+                return { message: `Underlying network/format error (Status: ${response.status})` };
+            });
 
-    return response.json();
-}
+            throw Object.assign(
+                new Error(body.message || `API error ${response.status}`),
+                { status: response.status, body }
+            );
+    }
 
 // Expose for tests and future real-fetch migrations (not needed by mock callers)
 export { apiFetch };
@@ -108,20 +141,23 @@ const api = {
         },
         create: async (data) => {
             await delay(800);
-            console.log('API Create Customer:', data);
             return { id: Date.now().toString(), ...data };
         },
         update: async (id, data) => {
             await delay(500);
-            console.log('API Update Customer:', id, data);
             return { id, ...data };
         },
         delete: async (id) => {
             await delay(500);
-            console.log('API Delete Customer:', id);
             return true;
         }
     },
+    delete: async (id) => {
+      await delay(500);
+      console.log("API Delete Customer:", id);
+      return true;
+    },
+  },
 
     // Invoices
     invoices: {
@@ -135,10 +171,10 @@ const api = {
         },
         create: async (data) => {
             await delay(800);
-            console.log('API Create Invoice:', data);
             return { id: `INV-${Date.now()}`, ...data };
         }
     },
+  },
 
     // Checkouts
     checkouts: {
@@ -148,10 +184,15 @@ const api = {
         },
         create: async (data) => {
             await delay(800);
-            console.log('API Create Checkout:', data);
             return { id: `CHK-${Date.now()}`, ...data };
         }
     },
+    create: async (data) => {
+      await delay(800);
+      console.log("API Create Checkout:", data);
+      return { id: `CHK-${Date.now()}`, ...data };
+    },
+  },
 
     // Items
     items: {
@@ -161,7 +202,6 @@ const api = {
         },
         create: async (data) => {
             await delay(800);
-            console.log('API Create Item:', data);
             return { id: Date.now().toString(), ...data };
         }
     }
